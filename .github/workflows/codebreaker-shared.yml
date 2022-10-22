@@ -1,0 +1,41 @@
+name: codebreaker-shared nuget package
+
+# When this action will be executed
+on:
+  # Triggered on a dispatch from another repo
+  repository_dispatch:
+
+  # Allow mannually trigger 
+  workflow_dispatch:    
+
+env:
+  LIB_VERSION: 2.0-beta.1.${{ github.run_number }}  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v3
+        with:
+          repository: cninnovation/codebreaker
+          token: ${{ secrets.CODEBREAKER_READ_PAT }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with: 
+          dotnet-version: '6.0.x'
+          include-prerelease: true
+
+      - name: Build the library
+        run: dotnet build -c Release src/shared/CodeBreaker.Shared/CodeBreaker.Shared.csproj
+        
+      - name: Create a Package
+        run: dotnet pack -c Release src/shared/CodeBreaker.Shared/CodeBreaker.Shared.csproj /p:Version=${{ env.LIB_VERSION }} -o codebreakerpackages
+        
+      - name: Add the GitHub Packages Source 
+        run: dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name githubcninnovation "https://nuget.pkg.github.com/CNinnovation/index.json"
+
+      - name: Publish to GitHub Packages
+        run: dotnet nuget push "codebreakerpackages/*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }} --source githubcninnovation  
